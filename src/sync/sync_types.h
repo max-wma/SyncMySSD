@@ -32,6 +32,7 @@ struct SyncConfig {
     std::filesystem::path sourcePath;
     std::filesystem::path destPath;
     SyncDirection         direction = SyncDirection::SourceToDest;
+    std::vector<std::string> excludedFirstLevelFolders;
 };
 
 struct SyncProgress {

@@ -14,6 +14,11 @@ public:
     void render();
 
 private:
+    struct SubfolderState {
+        std::string name;
+        bool isSelected = true;
+    };
+
     // Sub-renders
     void renderTitleBar();
     void renderConfigPanel();
@@ -23,6 +28,7 @@ private:
     void renderProgressOverlay();
 
     // Helpers
+    void        updateSubfolderList();
     void        saveConfig();
     void        loadConfig();
     std::string openFolderDialog();
@@ -34,6 +40,8 @@ private:
     char sourcePath_[512] = "";
     char destPath_[512]   = "";
     int  syncDirection_   = 0;   // 0 = →, 1 = ←, 2 = ↔
+
+    std::vector<SubfolderState> subfolders_;
 
     std::vector<sync::DiffEntry> diffs_;
     sync::SyncEngine engine_;

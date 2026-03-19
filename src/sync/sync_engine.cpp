@@ -6,10 +6,11 @@ namespace sync {
 // ── Diff computation ─────────────────────────────────────────────────────────
 std::vector<DiffEntry> SyncEngine::computeDiff(
     const std::filesystem::path& source,
-    const std::filesystem::path& dest)
+    const std::filesystem::path& dest,
+    const std::vector<std::string>& exclusions)
 {
-    auto srcFiles  = FileScanner::scan(source);
-    auto destFiles = FileScanner::scan(dest);
+    auto srcFiles  = FileScanner::scan(source, exclusions);
+    auto destFiles = FileScanner::scan(dest, exclusions);
     std::vector<DiffEntry> diffs;
 
     // Files in source but not dest → Added; in both but changed → Modified
@@ -116,10 +117,11 @@ void SyncEngine::executeSync(
 // ── Async wrappers ───────────────────────────────────────────────────────────
 std::future<std::vector<DiffEntry>> SyncEngine::computeDiffAsync(
     const std::filesystem::path& source,
-    const std::filesystem::path& dest)
+    const std::filesystem::path& dest,
+    const std::vector<std::string>& exclusions)
 {
-    return std::async(std::launch::async, [this, source, dest]() {
-        return computeDiff(source, dest);
+    return std::async(std::launch::async, [this, source, dest, exclusions]() {
+        return computeDiff(source, dest, exclusions);
     });
 }
 

@@ -121,6 +121,7 @@ void AppUI::renderConfigPanel() {
         auto p = openFolderDialog();
         if (!p.empty()) {
             strncpy_s(sourcePath_, p.c_str(), sizeof(sourcePath_) - 1);
+            updateSubfolderList();
             saveConfig();
         }
     }
@@ -137,6 +138,7 @@ void AppUI::renderConfigPanel() {
         auto p = openFolderDialog();
         if (!p.empty()) {
             strncpy_s(destPath_, p.c_str(), sizeof(destPath_) - 1);
+            updateSubfolderList();
             saveConfig();
         }
     }
@@ -160,6 +162,28 @@ void AppUI::renderConfigPanel() {
     dirBtn(1, "Dest -> Source"); ImGui::SameLine();
     dirBtn(2, "Sync Both Ways");
     ImGui::PopStyleVar();
+
+    // ── Subfolders (Inclusions/Exclusions) ───────────────────────────────────
+    if (!subfolders_.empty()) {
+        ImGui::Dummy(ImVec2(0, 5.0f));
+        drawOutlinedLabel("Include", ImVec2(labelWidth, boxHeight));
+        ImGui::SameLine();
+        
+        ImGui::BeginChild("##Subfolders", ImVec2(inputWidth + btnWidth + ImGui::GetStyle().ItemSpacing.x * 2.0f, 95), ImGuiChildFlags_Borders);
+        int cols = (int)((inputWidth + btnWidth) / 160.0f);
+        if (cols < 1) cols = 1; else if (cols > 4) cols = 4;
+        
+        if (ImGui::BeginTable("##SfT", cols)) {
+            for (auto& sf : subfolders_) {
+                ImGui::TableNextColumn();
+                if (ImGui::Checkbox(sf.name.c_str(), &sf.isSelected)) {
+                    saveConfig(); // update persistence immediately
+                }
+            }
+            ImGui::EndTable();
+        }
+        ImGui::EndChild();
+    }
 
     ImGui::Dummy(ImVec2(0, 5.0f)); // Equal bottom spacing
     ImGui::EndChild();
@@ -260,7 +284,11 @@ void AppUI::renderActionBar() {
     if (ImGui::Button("Scan for Changes", ImVec2(170, 36))) {
         isScanning_ = true;
         diffs_.clear();
-        scanFuture_ = engine_.computeDiffAsync(sourcePath_, destPath_);
+        std::vector<std::string> excl;
+        for (const auto& sf : subfolders_) {
+            if (!sf.isSelected) excl.push_back(sf.name);
+        }
+        scanFuture_ = engine_.computeDiffAsync(sourcePath_, destPath_, excl);
     }
     if (!canScan) ImGui::EndDisabled();
 
@@ -399,21 +427,68 @@ std::string AppUI::openFolderDialog() {
     return result;
 }
 
+void AppUI::updateSubfolderList() {
+    std::map<std::string, bool> currentExclusions;
+    for (const auto& sb : subfolders_) {
+        if (!sb.isSelected) currentExclusions[sb.name] = true;
+    }
+    subfolders_.clear();
+    
+    std::vector<std::string> discovered;
+    auto addDirs = [&](const char* pathStr) {
+        if (strlen(pathStr) == 0) return;
+        std::filesystem::path p(pathStr);
+        std::error_code ec;
+        if (!std::filesystem::exists(p, ec) || !std::filesystem::is_directory(p, ec)) return;
+        for (const auto& entry : std::filesystem::directory_iterator(p, ec)) {
+            if (entry.is_directory(ec)) {
+                discovered.push_back(entry.path().filename().string());
+            }
+        }
+    };
+    
+    addDirs(sourcePath_);
+    addDirs(destPath_);
+    
+    // De-duplicate
+    std::sort(discovered.begin(), discovered.end());
+    discovered.erase(std::unique(discovered.begin(), discovered.end()), discovered.end());
+    
+    for (const auto& d : discovered) {
+        SubfolderState st;
+        st.name = d;
+        st.isSelected = (currentExclusions.find(d) == currentExclusions.end());
+        subfolders_.push_back(st);
+    }
+}
+
 void AppUI::saveConfig() {
     std::ofstream ofs("settings.txt");
     if (ofs.is_open()) {
         ofs << sourcePath_ << "\n";
         ofs << destPath_ << "\n";
+        for (const auto& sf : subfolders_) {
+            if (!sf.isSelected) ofs << sf.name << "|";
+        }
+        ofs << "\n";
     }
 }
 
 void AppUI::loadConfig() {
     std::ifstream ifs("settings.txt");
     if (ifs.is_open()) {
-        std::string s, d;
+        std::string s, d, excl;
         if (std::getline(ifs, s)) strncpy_s(sourcePath_, s.c_str(), sizeof(sourcePath_) - 1);
         if (std::getline(ifs, d)) strncpy_s(destPath_, d.c_str(), sizeof(destPath_) - 1);
+        if (std::getline(ifs, excl)) {
+            std::stringstream ss(excl);
+            std::string item;
+            while (std::getline(ss, item, '|')) {
+                if (!item.empty()) subfolders_.push_back({item, false});
+            }
+        }
     }
+    updateSubfolderList();
 }
 
 std::string AppUI::formatFileSize(uintmax_t bytes) {

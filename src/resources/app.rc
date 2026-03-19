@@ -1,2 +1,2 @@
 // Manifest is now handled via CMake
-
+1 ICON "app.ico"
