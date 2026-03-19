@@ -1,0 +1,18 @@
+# Build
+build/
+out/
+cmake-build-*/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Compiled
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.exp
