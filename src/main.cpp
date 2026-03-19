@@ -56,8 +56,8 @@ static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
     // ── Window ───────────────────────────────────────────────────────────────
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0, 0,
-                       hInstance, nullptr, nullptr, nullptr, nullptr,
-                       L"SyncMySSD_WC", nullptr };
+                       hInstance, LoadIcon(hInstance, MAKEINTRESOURCE(1)), nullptr, nullptr, nullptr,
+                       L"SyncMySSD_WC", LoadIcon(hInstance, MAKEINTRESOURCE(1)) };
     RegisterClassExW(&wc);
 
     HWND hwnd = CreateWindowW(wc.lpszClassName, L"SyncMySSD",
